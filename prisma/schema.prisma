@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum EstadoReserva {
+  pendiente
+  confirmada
+  rechazada
+  cancelada
+  completada
+}
+
+enum EstadoPago {
+  pendiente
+  verificado
+  rechazado
+}
+
+enum TipoPromocion {
+  porcentaje
+  monto_fijo
+  dos_por_uno
+}
+
+enum TipoNotificacion {
+  reserva_creada
+  reserva_confirmada
+  reserva_rechazada
+  reserva_cancelada
+  voucher_pendiente
+  voucher_rechazado
+  promocion
+  recordatorio
+  sistema
+}
+
+enum CanalNotificacion {
+  app
+  correo
+}
+
+// ───────────── Usuarios y seguridad ─────────────
+model Rol {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique @db.VarChar(30)
+  usuarios Usuario[]
+
+  @@map("rol")
+}
+
+model Usuario {
+  id           Int      @id @default(autoincrement())
+  rolId        Int      @map("rol_id")
+  nombre       String   @db.VarChar(100)
+  correo       String   @unique @db.VarChar(150)
+  telefono     String?  @unique @db.VarChar(20)
+  fotoUrl      String?  @map("foto_url") @db.VarChar(400)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  rol            Rol                     @relation(fields: [rolId], references: [id])
+  reservas       Reserva[]
+  notificaciones Notificacion[]
+  complejos      ComplejoAdministrador[]
+  historial      ReservaHistorial[]
+  pagosRevisados Pago[]
+  reportes       Reporte[]
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordReset[]
+
+  @@index([rolId])
+  @@map("usuario")
+}
+
+model RefreshToken {
+  id         Int       @id @default(autoincrement())
+  usuarioId  Int       @map("usuario_id")
+  tokenHash  String    @unique @map("token_hash") @db.Char(64)
+  expiraEn   DateTime  @map("expira_en")
+  revocadoEn DateTime? @map("revocado_en")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("refresh_token")
+}
+
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  usuarioId Int       @map("usuario_id")
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiraEn  DateTime  @map("expira_en")
+  usadoEn   DateTime? @map("usado_en")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("password_reset")
+}
+
+model VerificacionCorreo {
+  id           Int      @id @default(autoincrement())
+  correo       String   @unique @db.VarChar(150)
+  nombre       String   @db.VarChar(100)
+  telefono     String?  @db.VarChar(20)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  codigoHash   String   @map("codigo_hash") @db.Char(64)
+  intentos     Int      @default(0) @db.TinyInt
+  expiraEn     DateTime @map("expira_en")
+  ultimoEnvio  DateTime @map("ultimo_envio")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("verificacion_correo")
+}
+
+// ───────────── Complejos y canchas ─────────────
+model Complejo {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @db.VarChar(120)
+  descripcion String?  @db.Text
+  direccion   String?  @db.VarChar(200)
+  ciudad      String   @default("Abancay") @db.VarChar(80)
+  latitud     Decimal? @db.Decimal(9, 6)
+  longitud    Decimal? @db.Decimal(9, 6)
+  telefono    String?  @db.VarChar(20)
+  fotoUrl     String?  @map("foto_url") @db.VarChar(400)
+  destacado   Boolean  @default(false)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  canchas         Cancha[]
+  promociones     Promocion[]
+  administradores ComplejoAdministrador[]
+  reportes        Reporte[]
+
+  @@index([destacado, activo])
+  @@map("complejo")
+}
+
+model ComplejoAdministrador {
+  complejoId Int @map("complejo_id")
+  usuarioId  Int @map("usuario_id")
+
+  complejo Complejo @relation(fields: [complejoId], references: [id], onDelete: Cascade)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([complejoId, usuarioId])
+  @@index([usuarioId])
+  @@map("complejo_administrador")
+}
+
+model Cancha {
+  id          Int      @id @default(autoincrement())
+  complejoId  Int      @map("complejo_id")
+  nombre      String   @db.VarChar(100)
+  descripcion String?  @db.Text
+  precioHora  Decimal  @map("precio_hora") @db.Decimal(8, 2)
+  servicios   Json?
+  fotoUrl     String?  @map("foto_url") @db.VarChar(400)
+  activa      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  complejo Complejo        @relation(fields: [complejoId], references: [id], onDelete: Cascade)
+  horarios HorarioCancha[]
+  reservas Reserva[]
+  bloques  ReservaBloque[]
+
+  @@unique([complejoId, nombre])
+  @@map("cancha")
+}
+
+// Horarios en que la cancha atiende, por día. Horas enteras (0-24), hora local de Perú.
+model HorarioCancha {
+  id         Int     @id @default(autoincrement())
+  canchaId   Int     @map("cancha_id")
+  diaSemana  Int     @map("dia_semana") @db.TinyInt // 1=Lun ... 7=Dom
+  horaInicio Int     @map("hora_inicio") @db.TinyInt
+  horaFin    Int     @map("hora_fin") @db.TinyInt
+  activo     Boolean @default(true)
+
+  cancha Cancha @relation(fields: [canchaId], references: [id], onDelete: Cascade)
+
+  @@unique([canchaId, diaSemana, horaInicio])
+  @@map("horario_cancha")
+}
+
+model Promocion {
+  id           Int           @id @default(autoincrement())
+  complejoId   Int           @map("complejo_id")
+  titulo       String        @db.VarChar(120)
+  descripcion  String?       @db.VarChar(250)
+  tipo         TipoPromocion
+  valor        Decimal?      @db.Decimal(8, 2)
+  diasSemana   Json?         @map("dias_semana")
+  horaDesde    Int?          @map("hora_desde") @db.TinyInt
+  horaHasta    Int?          @map("hora_hasta") @db.TinyInt
+  vigenteDesde DateTime      @map("vigente_desde") @db.Date
+  vigenteHasta DateTime      @map("vigente_hasta") @db.Date
+  activa       Boolean       @default(true)
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  complejo Complejo  @relation(fields: [complejoId], references: [id], onDelete: Cascade)
+  reservas Reserva[]
+
+  @@index([complejoId, activa])
+  @@map("promocion")
+}
+
+// ───────────── Reservas y pagos ─────────────
+model Reserva {
+  id          Int           @id @default(autoincrement())
+  usuarioId   Int           @map("usuario_id")
+  canchaId    Int           @map("cancha_id")
+  promocionId Int?          @map("promocion_id")
+  inicio      DateTime
+  fin         DateTime
+  horas       Int           @db.TinyInt
+  precioHora  Decimal       @map("precio_hora") @db.Decimal(8, 2)
+  subtotal    Decimal       @db.Decimal(10, 2)
+  descuento   Decimal       @default(0) @db.Decimal(10, 2)
+  total       Decimal       @db.Decimal(10, 2)
+  estado      EstadoReserva @default(pendiente)
+  venceEn     DateTime?     @map("vence_en")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  usuario        Usuario            @relation(fields: [usuarioId], references: [id])
+  cancha         Cancha             @relation(fields: [canchaId], references: [id])
+  promocion      Promocion?         @relation(fields: [promocionId], references: [id])
+  pagos          Pago[]
+  bloques        ReservaBloque[]
+  historial      ReservaHistorial[]
+  notificaciones Notificacion[]
+
+  @@index([usuarioId, inicio])
+  @@index([canchaId, inicio])
+  @@index([estado, venceEn])
+  @@map("reserva")
+}
+
+// Una fila por cada hora reservada. El UNIQUE impide, a nivel de BD, reservar dos veces la misma hora.
+model ReservaBloque {
+  id        Int      @id @default(autoincrement())
+  reservaId Int      @map("reserva_id")
+  canchaId  Int      @map("cancha_id")
+  inicio    DateTime
+
+  reserva Reserva @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  cancha  Cancha  @relation(fields: [canchaId], references: [id])
+
+  @@unique([canchaId, inicio])
+  @@index([reservaId])
+  @@map("reserva_bloque")
+}
+
+model Pago {
+  id              Int        @id @default(autoincrement())
+  reservaId       Int        @map("reserva_id")
+  revisadoPor     Int?       @map("revisado_por")
+  monto           Decimal    @db.Decimal(10, 2)
+  voucherUrl      String     @map("voucher_url") @db.VarChar(400)
+  numeroOperacion String?    @unique @map("numero_operacion") @db.VarChar(60)
+  estado          EstadoPago @default(pendiente)
+  motivoRechazo   String?    @map("motivo_rechazo") @db.VarChar(250)
+  revisadoEn      DateTime?  @map("revisado_en")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  reserva Reserva  @relation(fields: [reservaId], references: [id])
+  revisor Usuario? @relation(fields: [revisadoPor], references: [id])
+
+  @@index([reservaId])
+  @@index([estado])
+  @@map("pago")
+}
+
+model ReservaHistorial {
+  id             Int            @id @default(autoincrement())
+  reservaId      Int            @map("reserva_id")
+  usuarioId      Int?           @map("usuario_id")
+  estadoAnterior EstadoReserva? @map("estado_anterior")
+  estadoNuevo    EstadoReserva  @map("estado_nuevo")
+  comentario     String?        @db.VarChar(250)
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  reserva Reserva  @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([reservaId])
+  @@map("reserva_historial")
+}
+
+// ───────────── Extras ─────────────
+model Notificacion {
+  id         Int               @id @default(autoincrement())
+  usuarioId  Int               @map("usuario_id")
+  reservaId  Int?              @map("reserva_id")
+  tipo       TipoNotificacion
+  canal      CanalNotificacion @default(app)
+  titulo     String            @db.VarChar(120)
+  mensaje    String?           @db.VarChar(300)
+  leida      Boolean           @default(false)
+  enviadaEn  DateTime?         @map("enviada_en")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  usuario Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  reserva Reserva? @relation(fields: [reservaId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId, leida, createdAt])
+  @@map("notificacion")
+}
+
+model Reporte {
+  id            Int      @id @default(autoincrement())
+  complejoId    Int?     @map("complejo_id")
+  generadoPor   Int      @map("generado_por")
+  periodoDesde  DateTime @map("periodo_desde") @db.Date
+  periodoHasta  DateTime @map("periodo_hasta") @db.Date
+  totalReservas Int      @default(0) @map("total_reservas")
+  totalIngresos Decimal  @default(0) @map("total_ingresos") @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  complejo  Complejo? @relation(fields: [complejoId], references: [id])
+  generador Usuario   @relation(fields: [generadoPor], references: [id])
+
+  @@map("reporte")
+}

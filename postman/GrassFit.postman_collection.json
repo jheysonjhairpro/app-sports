@@ -1,0 +1,1835 @@
+{
+  "info": {
+    "name": "GrassFit API",
+    "description": "API de GrassFit.\n\nCÓMO USARLA\n1. Levanta la API (npm run start:dev). baseUrl ya apunta a http://localhost:3000/api/v1\n2. Los tokens se guardan SOLOS al hacer login / verificar registro. Todas las peticiones usan {{accessToken}}.\n3. Los ids (complejoId, canchaId, reservaId, pagoId...) también se guardan solos al crear cosas.\n\nFLUJO DE PRUEBA SUGERIDO\n a) Auth > Login · Super Admin\n b) Usuarios > [Super] Crear usuario administrador\n c) Complejos > [Super] Crear complejo   y   Asignar administrador al complejo\n d) Auth > Login · Administrador  >  Canchas > Crear cancha  >  Guardar horarios semanales\n e) Promociones > Crear (opcional)\n f) Auth > Registro paso 1 y paso 2 (revisa el código en tu correo)  >  Reservas > Crear reserva\n g) Pagos > Subir voucher (con imagen)\n h) Auth > Login · Administrador  >  Pagos > Verificar voucher\n\nPeticiones con imágenes usan form-data: activa el campo de archivo (casilla) y elige la imagen.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fechas de ejemplo: dentro de 2 días a las 15:00 hora de Perú (UTC-5)",
+          "const dia = new Date(); dia.setUTCDate(dia.getUTCDate() + 2); dia.setUTCHours(20, 0, 0, 0);",
+          "pm.collectionVariables.set('inicio', dia.toISOString());",
+          "pm.collectionVariables.set('fecha', new Date(dia.getTime() - 5 * 3600 * 1000).toISOString().slice(0, 10));",
+          "const hoy = new Date(Date.now() - 5 * 3600 * 1000);",
+          "pm.collectionVariables.set('vigenteDesde', hoy.toISOString().slice(0, 10));",
+          "pm.collectionVariables.set('vigenteHasta', new Date(hoy.getTime() + 90 * 86400000).toISOString().slice(0, 10));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "complejoId",
+      "value": ""
+    },
+    {
+      "key": "canchaId",
+      "value": ""
+    },
+    {
+      "key": "reservaId",
+      "value": ""
+    },
+    {
+      "key": "pagoId",
+      "value": ""
+    },
+    {
+      "key": "usuarioId",
+      "value": ""
+    },
+    {
+      "key": "promocionId",
+      "value": ""
+    },
+    {
+      "key": "inicio",
+      "value": ""
+    },
+    {
+      "key": "fecha",
+      "value": ""
+    },
+    {
+      "key": "vigenteDesde",
+      "value": ""
+    },
+    {
+      "key": "vigenteHasta",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0 · Salud",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1 · Auth",
+      "item": [
+        {
+          "name": "Registro · paso 1 (envía código al correo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Andrés Arone\",\n  \"correo\": \"tucorreo@gmail.com\",\n  \"telefono\": \"987654321\",\n  \"password\": \"MiClave123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Valida los datos y envía un código de 6 dígitos al correo. El usuario NO se crea todavía."
+          }
+        },
+        {
+          "name": "Registro · paso 2 (verificar código)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verificar-registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verificar-registro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"tucorreo@gmail.com\",\n  \"codigo\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Con el código correcto se crea el usuario y se inicia sesión (guarda los tokens solo)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  if (r.accessToken) { pm.collectionVariables.set('accessToken', r.accessToken); pm.collectionVariables.set('refreshToken', r.refreshToken); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registro · reenviar código",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/reenviar-codigo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "reenviar-codigo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"tucorreo@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Espera 60 segundos entre envíos."
+          }
+        },
+        {
+          "name": "Login · Super Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@grassfit.app\",\n  \"password\": \"CambiaEstaClave123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Usa SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD de tu .env."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  if (r.accessToken) { pm.collectionVariables.set('accessToken', r.accessToken); pm.collectionVariables.set('refreshToken', r.refreshToken); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login · Administrador de complejo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin.complejo@test.com\",\n  \"password\": \"Admin12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Primero créalo con 'Crear usuario' (carpeta Usuarios)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  if (r.accessToken) { pm.collectionVariables.set('accessToken', r.accessToken); pm.collectionVariables.set('refreshToken', r.refreshToken); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login · Cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"tucorreo@gmail.com\",\n  \"password\": \"MiClave123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  if (r.accessToken) { pm.collectionVariables.set('accessToken', r.accessToken); pm.collectionVariables.set('refreshToken', r.refreshToken); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  if (r.accessToken) { pm.collectionVariables.set('accessToken', r.accessToken); pm.collectionVariables.set('refreshToken', r.refreshToken); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · Usuarios",
+      "item": [
+        {
+          "name": "Mi perfil",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar mi perfil (form-data + foto)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "nombre",
+                  "value": "Andrés Arone",
+                  "type": "text"
+                },
+                {
+                  "key": "telefono",
+                  "value": "987654321",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "foto",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "form-data. Para cambiar la foto activa el campo 'foto' y elige un archivo (JPG/PNG/WEBP, máx. 5 MB). La foto anterior se borra de Cloudinary."
+          }
+        },
+        {
+          "name": "[Super] Listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios"
+              ],
+              "query": [
+                {
+                  "key": "rol",
+                  "value": "administrador",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Super] Crear usuario administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Admin Complejo\",\n  \"correo\": \"admin.complejo@test.com\",\n  \"telefono\": \"999111222\",\n  \"password\": \"Admin12345\",\n  \"rol\": \"administrador\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  pm.collectionVariables.set('usuarioId', r.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Super] Activar / desactivar usuario",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/{{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{usuarioId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 · Complejos",
+      "item": [
+        {
+          "name": "Listar complejos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos"
+              ],
+              "query": [
+                {
+                  "key": "destacado",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "lat",
+                  "value": "-13.6339",
+                  "disabled": true
+                },
+                {
+                  "key": "lng",
+                  "value": "-72.8814",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Con lat/lng ordena por cercanía (la ubicación del usuario no se guarda)."
+          }
+        },
+        {
+          "name": "Mis complejos (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos/mios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos",
+                "mios"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle de complejo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos/{{complejoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos",
+                "{{complejoId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Super] Crear complejo (form-data + foto)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "nombre",
+                  "value": "Complejo El Golazo",
+                  "type": "text"
+                },
+                {
+                  "key": "descripcion",
+                  "value": "Grass sintético con iluminación y vestidores",
+                  "type": "text"
+                },
+                {
+                  "key": "direccion",
+                  "value": "Av. Perú 123",
+                  "type": "text"
+                },
+                {
+                  "key": "ciudad",
+                  "value": "Abancay",
+                  "type": "text"
+                },
+                {
+                  "key": "latitud",
+                  "value": "-13.6339",
+                  "type": "text"
+                },
+                {
+                  "key": "longitud",
+                  "value": "-72.8814",
+                  "type": "text"
+                },
+                {
+                  "key": "telefono",
+                  "value": "083123456",
+                  "type": "text"
+                },
+                {
+                  "key": "destacado",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "foto",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "form-data. 'foto' es opcional."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  pm.collectionVariables.set('complejoId', r.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar complejo (form-data + foto)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos/{{complejoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos",
+                "{{complejoId}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "nombre",
+                  "value": "Complejo El Golazo",
+                  "type": "text"
+                },
+                {
+                  "key": "telefono",
+                  "value": "083999888",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "foto",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "form-data. Envía solo los campos que cambian. Si adjuntas 'foto', reemplaza la anterior. 'destacado' y 'activo' solo los cambia el super admin."
+          }
+        },
+        {
+          "name": "[Super] Marcar como destacado",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos/{{complejoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos",
+                "{{complejoId}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "destacado",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Super] Listar administradores del complejo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos/{{complejoId}}/administradores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos",
+                "{{complejoId}}",
+                "administradores"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Super] Asignar administrador al complejo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/complejos/{{complejoId}}/administradores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos",
+                "{{complejoId}}",
+                "administradores"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "[Super] Quitar administrador del complejo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/complejos/{{complejoId}}/administradores/{{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "complejos",
+                "{{complejoId}}",
+                "administradores",
+                "{{usuarioId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 · Canchas",
+      "item": [
+        {
+          "name": "Listar canchas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas?complejoId={{complejoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ],
+              "query": [
+                {
+                  "key": "complejoId",
+                  "value": "{{complejoId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mis canchas (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/mias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "mias"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle de cancha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Disponibilidad por fecha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaId}}/disponibilidad?fecha={{fecha}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaId}}",
+                "disponibilidad"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{fecha}}"
+                }
+              ]
+            },
+            "description": "La variable {{fecha}} se calcula sola (dentro de 2 días, hora de Perú)."
+          }
+        },
+        {
+          "name": "Crear cancha (form-data + foto)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "complejoId",
+                  "value": "{{complejoId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "nombre",
+                  "value": "Cancha 1",
+                  "type": "text"
+                },
+                {
+                  "key": "descripcion",
+                  "value": "Cancha nueva de 7 vs 7",
+                  "type": "text"
+                },
+                {
+                  "key": "precioHora",
+                  "value": "70",
+                  "type": "text"
+                },
+                {
+                  "key": "servicios",
+                  "value": "iluminación,vestidores,duchas",
+                  "type": "text"
+                },
+                {
+                  "key": "foto",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "form-data. 'servicios' acepta lista separada por comas o JSON."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  pm.collectionVariables.set('canchaId', r.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar cancha (form-data + foto)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaId}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "precioHora",
+                  "value": "80",
+                  "type": "text"
+                },
+                {
+                  "key": "nombre",
+                  "value": "Cancha 1",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "foto",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "form-data. Cada vez que adjuntas 'foto' se reemplaza la anterior."
+          }
+        },
+        {
+          "name": "Guardar horarios semanales",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/{{canchaId}}/horarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "canchas",
+                "{{canchaId}}",
+                "horarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"horarios\": [\n    {\n      \"diaSemana\": 1,\n      \"horaInicio\": 8,\n      \"horaFin\": 23\n    },\n    {\n      \"diaSemana\": 2,\n      \"horaInicio\": 8,\n      \"horaFin\": 23\n    },\n    {\n      \"diaSemana\": 3,\n      \"horaInicio\": 8,\n      \"horaFin\": 23\n    },\n    {\n      \"diaSemana\": 4,\n      \"horaInicio\": 8,\n      \"horaFin\": 23\n    },\n    {\n      \"diaSemana\": 5,\n      \"horaInicio\": 8,\n      \"horaFin\": 23\n    },\n    {\n      \"diaSemana\": 6,\n      \"horaInicio\": 8,\n      \"horaFin\": 23\n    },\n    {\n      \"diaSemana\": 7,\n      \"horaInicio\": 8,\n      \"horaFin\": 23\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Reemplaza toda la plantilla semanal. diaSemana: 1=Lunes ... 7=Domingo. Horas enteras 0-24."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 · Promociones",
+      "item": [
+        {
+          "name": "Promociones vigentes del complejo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/promociones?complejoId={{complejoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "promociones"
+              ],
+              "query": [
+                {
+                  "key": "complejoId",
+                  "value": "{{complejoId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Todas las promociones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/promociones/admin?complejoId={{complejoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "promociones",
+                "admin"
+              ],
+              "query": [
+                {
+                  "key": "complejoId",
+                  "value": "{{complejoId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Crear · 10% en la tarde",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/promociones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "promociones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"complejoId\": \"{{complejoId}}\",\n  \"titulo\": \"10% de descuento en la tarde\",\n  \"tipo\": \"porcentaje\",\n  \"valor\": 10,\n  \"horaDesde\": 14,\n  \"horaHasta\": 18,\n  \"vigenteDesde\": \"{{vigenteDesde}}\",\n  \"vigenteHasta\": \"{{vigenteHasta}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  pm.collectionVariables.set('promocionId', r.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] Crear · 2x1 fines de semana",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/promociones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "promociones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"complejoId\": \"{{complejoId}}\",\n  \"titulo\": \"2x1 fines de semana\",\n  \"tipo\": \"dos_por_uno\",\n  \"diasSemana\": [\n    6,\n    7\n  ],\n  \"vigenteDesde\": \"{{vigenteDesde}}\",\n  \"vigenteHasta\": \"{{vigenteHasta}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "[Admin] Editar promoción",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/promociones/{{promocionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "promociones",
+                "{{promocionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"valor\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "[Admin] Desactivar promoción",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/promociones/{{promocionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "promociones",
+                "{{promocionId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 · Reservas",
+      "item": [
+        {
+          "name": "Crear reserva (3 horas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"canchaId\": \"{{canchaId}}\",\n  \"inicio\": \"{{inicio}}\",\n  \"horas\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "{{inicio}} se calcula solo: dentro de 2 días a las 15:00 hora de Perú. Repetirla da 409 (horario ocupado)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  pm.collectionVariables.set('reservaId', r.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear reserva con promoción",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"canchaId\": \"{{canchaId}}\",\n  \"inicio\": \"{{inicio}}\",\n  \"horas\": 2,\n  \"promocionId\": \"{{promocionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  pm.collectionVariables.set('reservaId', r.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mis reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/mias?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "mias"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "pendiente",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Reservas de mis complejos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/admin?page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "admin"
+              ],
+              "query": [
+                {
+                  "key": "complejoId",
+                  "value": "{{complejoId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "estado",
+                  "value": "pendiente",
+                  "disabled": true
+                },
+                {
+                  "key": "fecha",
+                  "value": "{{fecha}}",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle de reserva (con historial)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancelar reserva",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaId}}",
+                "cancelar"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Rechazar reserva",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaId}}/rechazar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaId}}",
+                "rechazar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Cancha en mantenimiento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7 · Pagos (voucher Yape)",
+      "item": [
+        {
+          "name": "Subir voucher (form-data + imagen)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservas/{{reservaId}}/voucher",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservas",
+                "{{reservaId}}",
+                "voucher"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "voucher",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "numeroOperacion",
+                  "value": "88776655",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "form-data. Elige la imagen en el campo 'voucher' (obligatorio). La reserva sigue pendiente hasta que el admin la revise."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const r = pm.response.json();",
+                  "  pm.collectionVariables.set('pagoId', r.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] Verificar voucher (confirma la reserva)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/{{pagoId}}/verificar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "{{pagoId}}",
+                "verificar"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Rechazar voucher",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/{{pagoId}}/rechazar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "{{pagoId}}",
+                "rechazar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"El monto no coincide\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "La reserva sigue pendiente y el cliente tiene MINUTOS_PAGO minutos para subir otro."
+          }
+        }
+      ]
+    },
+    {
+      "name": "8 · Notificaciones",
+      "item": [
+        {
+          "name": "Mis notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notificaciones?",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notificaciones"
+              ],
+              "query": [
+                {
+                  "key": "noLeidas",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Marcar una como leída",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notificaciones/1/leida",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notificaciones",
+                "1",
+                "leida"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Marcar todas como leídas",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notificaciones/leer-todas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notificaciones",
+                "leer-todas"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9 · Reportes",
+      "item": [
+        {
+          "name": "[Admin] Resumen del dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/resumen?",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "resumen"
+              ],
+              "query": [
+                {
+                  "key": "complejoId",
+                  "value": "{{complejoId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "hasta",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Super] Dashboard global",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/global",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "global"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Guardar reporte",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reportes?",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes"
+              ],
+              "query": [
+                {
+                  "key": "complejoId",
+                  "value": "{{complejoId}}",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Listar reportes guardados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reportes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
