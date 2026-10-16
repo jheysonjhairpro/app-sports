@@ -7,6 +7,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { OPCIONES_IMAGEN } from '../common/upload';
 import { ActualizarPerfilDto, ActualizarUsuarioDto, CrearUsuarioDto, ListarUsuariosDto } from './dto/usuarios.dto';
 import { UsuariosService } from './usuarios.service';
+import 'multer'; // <-- AGREGA ESTA LÍNEA AQUÍ
 
 @ApiTags('usuarios')
 @ApiBearerAuth()

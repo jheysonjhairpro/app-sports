@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
-import { aBooleano } from '../../common/utils/form.util';
 import { PaginacionDto } from '../../common/dto/paginacion.dto';
+import { aBooleano } from '../../common/utils/form.util';
 
 const ROLES = ['usuario', 'administrador', 'super_admin'] as const;
 
@@ -12,6 +12,9 @@ export class ActualizarPerfilDto {
   @IsOptional() @Matches(/^[0-9+\s-]{7,20}$/, { message: 'Teléfono inválido' })
   telefono?: string;
 
+  // Permite que Multer reciba 'foto' en form-data sin rebotar la validación
+  @IsOptional()
+  foto?: any;
 }
 
 export class CrearUsuarioDto {

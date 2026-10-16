@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+ import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { paginar } from '../common/dto/paginacion.dto';
@@ -21,10 +21,21 @@ export class UsuariosService {
 
   /** Actualiza el perfil. Si llega un archivo "foto", reemplaza la anterior (y borra la vieja de Cloudinary). */
   async actualizarPerfil(id: number, dto: ActualizarPerfilDto, foto?: Express.Multer.File) {
+    // Extraemos 'foto' del dto para que no interfiera en la query de Prisma
+    const { foto: _, ...datosAActualizar } = dto;
+
     const actual = await this.prisma.usuario.findUniqueOrThrow({ where: { id }, select: { fotoUrl: true } });
+
     return this.storage.conImagen(foto, 'perfil', actual.fotoUrl, (url) =>
       this.guardar(() =>
-        this.prisma.usuario.update({ where: { id }, data: { ...dto, ...(url ? { fotoUrl: url } : {}) }, select: SELECT }),
+        this.prisma.usuario.update({
+          where: { id },
+          data: {
+            ...datosAActualizar,
+            ...(url ? { fotoUrl: url } : {}),
+          },
+          select: SELECT,
+        }),
       ),
     );
   }
@@ -56,7 +67,8 @@ export class UsuariosService {
   }
 
   async actualizar(id: number, dto: ActualizarUsuarioDto) {
-    const { rol, ...resto } = dto;
+    // También extraemos 'foto' por si ActualizarUsuarioDto hereda de ActualizarPerfilDto
+    const { rol, foto: _, ...resto } = dto;
     const data: Prisma.UsuarioUpdateInput = { ...resto };
     if (rol) {
       const r = await this.prisma.rol.findUnique({ where: { nombre: rol } });
