@@ -63,6 +63,9 @@ La regla "el administrador solo toca sus complejos" vive en un único lugar: `Ac
 | POST | `/auth/register` | público | **Paso 1:** valida datos y envía código de 6 dígitos al correo (el usuario aún NO se crea) |
 | POST | `/auth/verificar-registro` | público | **Paso 2:** con el código correcto se crea el usuario y se inicia sesión |
 | POST | `/auth/reenviar-codigo` | público | Nuevo código (espera de 60 s entre envíos) |
+| POST | `/auth/recuperar/solicitar` | público | **Recuperar contraseña, paso 1:** envía un código de 6 dígitos al correo (responde igual exista o no la cuenta) |
+| POST | `/auth/recuperar/verificar` | público | **Paso 2 (opcional):** comprueba el código para mostrar la pantalla de nueva contraseña |
+| POST | `/auth/recuperar/restablecer` | público | **Paso 3:** código + `nuevaPassword`; cierra todas las sesiones y avisa por correo |
 | POST | `/auth/login` `/auth/refresh` `/auth/logout` | público | Sesión (access 15 min + refresh 30 días con rotación) |
 | GET | `/usuarios/me` | autenticado | Perfil |
 | PATCH | `/usuarios/me` | autenticado | **form-data**: `nombre`, `telefono`, `foto` (archivo). La foto nueva reemplaza la anterior |
@@ -102,7 +105,19 @@ Cliente ── POST /auth/reenviar-codigo ───► código nuevo (cada 60 s)
 El código nunca se guarda en claro (solo un HMAC) y la contraseña queda cifrada desde el primer paso.
 Los usuarios que crea el super admin (`POST /usuarios`) no pasan por verificación.
 
-## 6. Flujo de una reserva con Yape
+## 6. Recuperar contraseña
+
+```
+Usuario ── POST /auth/recuperar/solicitar ───► código de 6 dígitos al correo (vence en 10 min; 1 envío por minuto)
+Usuario ── POST /auth/recuperar/verificar ───► {valido:true}  (opcional; cada fallo suma un intento, máx. 5)
+Usuario ── POST /auth/recuperar/restablecer ─► guarda la nueva contraseña, cierra TODAS las sesiones,
+                                               borra el código y envía un aviso de seguridad por correo
+```
+- Responde lo mismo exista o no el correo, para no revelar qué cuentas existen.
+- El código no se guarda en claro (HMAC) y un código de registro no sirve para recuperar contraseña.
+- Si el correo no se puede enviar y no hay SMTP configurado en desarrollo, el código aparece en la consola del servidor.
+
+## 7. Flujo de una reserva con Yape
 
 ```
 Usuario ── POST /reservas ─────────────► reserva PENDIENTE (reserva las horas, vence en 30 min)
@@ -116,7 +131,7 @@ Admin   ── PATCH /pagos/:id/rechazar ───► pago RECHAZADO; el usuario
         ◄─ correo "Voucher rechazado"                        (si no lo hace, se libera el horario)
 ```
 
-## 7. Decisiones importantes (y por qué)
+## 8. Decisiones importantes (y por qué)
 
 1. **No se pueden duplicar reservas, ni con fallos de código.** Cada hora reservada es una fila en
    `reserva_bloque` con `UNIQUE(cancha_id, inicio)`. Si dos personas reservan la misma hora a la vez,
@@ -136,7 +151,7 @@ Admin   ── PATCH /pagos/:id/rechazar ───► pago RECHAZADO; el usuario
    reducidas a 1200 px). Al reemplazar una foto se borra la anterior; si falla el guardado, se borra la nueva.
 8. **Refresh tokens con rotación**: si alguien reutiliza un token viejo, se cierran todas las sesiones.
 
-## 8. Escalabilidad: qué hacer y cuándo
+## 9. Escalabilidad: qué hacer y cuándo
 
 | Etapa | Qué | Cómo |
 |---|---|---|
@@ -147,9 +162,9 @@ Admin   ── PATCH /pagos/:id/rechazar ───► pago RECHAZADO; el usuario
 | Reportes pesados | Réplica de lectura / caché | Los reportes ya son consultas agregadas, fáciles de mover a una réplica. |
 | Muchos complejos | Búsqueda por cercanía en SQL | Hoy se calcula en memoria (ideal hasta unos cientos de complejos); luego, índice espacial de MySQL. |
 
-## 9. Pendiente (fase 2)
+## 10. Pendiente (fase 2)
 
-- Recuperar contraseña (la tabla `password_reset` ya existe; falta el endpoint y el correo).
+- Cambiar contraseña estando con sesión iniciada (pidiendo la actual).
 - Bloqueos de horario por mantenimiento/feriado.
 - Tarjeta Visa y efectivo (hoy solo Yape).
 - Vouchers con acceso privado en Cloudinary (hoy las URLs no son adivinables, pero son públicas).

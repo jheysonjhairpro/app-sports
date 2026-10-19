@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "GrassFit API",
-    "description": "API de GrassFit.\n\nCÓMO USARLA\n1. Levanta la API (npm run start:dev). baseUrl ya apunta a http://localhost:3000/api/v1\n2. Los tokens se guardan SOLOS al hacer login / verificar registro. Todas las peticiones usan {{accessToken}}.\n3. Los ids (complejoId, canchaId, reservaId, pagoId...) también se guardan solos al crear cosas.\n\nFLUJO DE PRUEBA SUGERIDO\n a) Auth > Login · Super Admin\n b) Usuarios > [Super] Crear usuario administrador\n c) Complejos > [Super] Crear complejo   y   Asignar administrador al complejo\n d) Auth > Login · Administrador  >  Canchas > Crear cancha  >  Guardar horarios semanales\n e) Promociones > Crear (opcional)\n f) Auth > Registro paso 1 y paso 2 (revisa el código en tu correo)  >  Reservas > Crear reserva\n g) Pagos > Subir voucher (con imagen)\n h) Auth > Login · Administrador  >  Pagos > Verificar voucher\n\nPeticiones con imágenes usan form-data: activa el campo de archivo (casilla) y elige la imagen.",
+    "description": "API de GrassFit.\n\nCÓMO USARLA\n1. Levanta la API (npm run start:dev). baseUrl ya apunta a http://localhost:3000/api/v1\n2. Los tokens se guardan SOLOS al hacer login / verificar registro. Todas las peticiones usan {{accessToken}}.\n3. Los ids (complejoId, canchaId, reservaId, pagoId...) también se guardan solos al crear cosas.\n\nFLUJO DE PRUEBA SUGERIDO\n a) Auth > Login · Super Admin\n b) Usuarios > [Super] Crear usuario administrador\n c) Complejos > [Super] Crear complejo   y   Asignar administrador al complejo\n d) Auth > Login · Administrador  >  Canchas > Crear cancha  >  Guardar horarios semanales\n e) Promociones > Crear (opcional)\n f) Auth > Registro paso 1 y paso 2 (revisa el código en tu correo)  >  Reservas > Crear reserva\n g) Pagos > Subir voucher (con imagen)\n h) Auth > Login · Administrador  >  Pagos > Verificar voucher\n\nRECUPERAR CONTRASEÑA: Auth > Recuperar contraseña paso 1 (llega el código al correo) > paso 2 (opcional) > paso 3 (nueva contraseña) > Login con la nueva.\n\nPeticiones con imágenes usan form-data: activa el campo de archivo (casilla) y elige la imagen.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -377,6 +377,114 @@
               }
             }
           ]
+        },
+        {
+          "name": "Recuperar contraseña · paso 1 (envía código al correo)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/recuperar/solicitar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "recuperar",
+                "solicitar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"tucorreo@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Envía un código de 6 dígitos al correo SI existe la cuenta. Siempre responde lo mismo (exista o no) para no revelar qué correos están registrados. Espera 60 s entre envíos."
+          }
+        },
+        {
+          "name": "Recuperar contraseña · paso 2 (verificar código)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/recuperar/verificar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "recuperar",
+                "verificar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"tucorreo@gmail.com\",\n  \"codigo\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Opcional: comprueba el código sin cambiar nada, para mostrar la pantalla de nueva contraseña. Máx. 5 intentos por código."
+          }
+        },
+        {
+          "name": "Recuperar contraseña · paso 3 (nueva contraseña)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/recuperar/restablecer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "recuperar",
+                "restablecer"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"tucorreo@gmail.com\",\n  \"codigo\": \"123456\",\n  \"nuevaPassword\": \"NuevaClave123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Con el código correcto guarda la nueva contraseña, cierra todas las sesiones abiertas y envía un aviso de seguridad por correo."
+          }
         },
         {
           "name": "Refresh token",

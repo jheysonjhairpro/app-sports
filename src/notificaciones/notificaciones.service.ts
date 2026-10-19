@@ -13,8 +13,6 @@ export interface NuevaNotificacion {
   correo?: boolean;
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-
 @Injectable()
 export class NotificacionesService {
   private log = new Logger(NotificacionesService.name);
@@ -33,7 +31,7 @@ export class NotificacionesService {
       if (n.correo) {
         const u = await this.prisma.usuario.findUnique({ where: { id: n.usuarioId }, select: { correo: true, nombre: true } });
         if (!u) return;
-        const ok = await this.mail.enviar(u.correo, n.titulo, this.plantilla(u.nombre, n.titulo, n.mensaje));
+        const ok = await this.mail.enviarNotificacion(u.correo, u.nombre, n.titulo, n.mensaje);
         await this.prisma.notificacion.create({
           data: { ...base, canal: 'correo', leida: true, enviadaEn: ok ? new Date() : null },
         });
@@ -59,14 +57,5 @@ export class NotificacionesService {
   async marcarTodas(usuarioId: number) {
     await this.prisma.notificacion.updateMany({ where: { usuarioId, leida: false }, data: { leida: true } });
     return { ok: true };
-  }
-
-  private plantilla(nombre: string, titulo: string, mensaje?: string) {
-    return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
-      <h2 style="color:#0F9D78">GrassFit</h2>
-      <p>Hola ${esc(nombre)},</p>
-      <h3>${esc(titulo)}</h3>
-      <p>${esc(mensaje ?? '')}</p>
-      <hr><small style="color:#888">Este es un mensaje automático de GrassFit.</small></div>`;
   }
 }

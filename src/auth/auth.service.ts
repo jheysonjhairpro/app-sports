@@ -10,7 +10,9 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { LoginDto, RegisterDto, VerificarRegistroDto } from './dto/auth.dto';
+import {
+  LoginDto, RegisterDto, RestablecerPasswordDto, VerificarRecuperacionDto, VerificarRegistroDto,
+} from './dto/auth.dto';
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
@@ -127,11 +129,108 @@ export class AuthService {
     return this.respuestaEnvio(correo);
   }
 
-  /** Limpieza diaria de registros pendientes vencidos hace más de un día. */
+  /** Limpieza diaria de registros y códigos de recuperación vencidos hace más de un día. */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async limpiarVerificaciones() {
     if (this.config.get('RUN_CRONS') === 'false') return;
-    await this.prisma.verificacionCorreo.deleteMany({ where: { expiraEn: { lt: new Date(Date.now() - 86_400_000) } } });
+    const limite = new Date(Date.now() - 86_400_000);
+    await this.prisma.verificacionCorreo.deleteMany({ where: { expiraEn: { lt: limite } } });
+    await this.prisma.passwordReset.deleteMany({ where: { expiraEn: { lt: limite } } });
+  }
+
+  // ───────────── Recuperar contraseña (3 pasos) ─────────────
+  /**
+   * Paso 1: el usuario escribe su correo y, si existe una cuenta activa, recibe un código de 6 dígitos.
+   * Siempre responde lo mismo (exista o no el correo) para no revelar qué correos están registrados.
+   */
+  async solicitarRecuperacion(correoRaw: string) {
+    const correo = correoRaw.toLowerCase();
+    const respuesta = {
+      mensaje: 'Si el correo está registrado, te enviamos un código de 6 dígitos',
+      expiraEnMinutos: CODIGO_MINUTOS,
+      reenvioEnSegundos: REENVIO_SEGUNDOS,
+    };
+
+    const u = await this.prisma.usuario.findUnique({
+      where: { correo },
+      select: { id: true, nombre: true, activo: true },
+    });
+    if (!u || !u.activo) return respuesta;
+
+    // Anti-spam: máximo un código cada 60 segundos por cuenta
+    const previo = await this.prisma.passwordReset.findFirst({
+      where: { usuarioId: u.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (previo && Date.now() - previo.createdAt.getTime() < REENVIO_SEGUNDOS * 1000) return respuesta;
+
+    const codigo = this.generarCodigo();
+    if (!(await this.enviarCodigoRecuperacion(correo, u.nombre, codigo))) {
+      throw new ServiceUnavailableException('No pudimos enviar el correo. Intenta de nuevo en unos minutos');
+    }
+
+    // Un solo código vigente por cuenta: el nuevo reemplaza al anterior
+    await this.prisma.$transaction([
+      this.prisma.passwordReset.deleteMany({ where: { usuarioId: u.id } }),
+      this.prisma.passwordReset.create({
+        data: {
+          usuarioId: u.id,
+          codigoHash: this.hashCodigoReset(correo, codigo),
+          expiraEn: new Date(Date.now() + CODIGO_MINUTOS * 60_000),
+        },
+      }),
+    ]);
+    return respuesta;
+  }
+
+  /** Paso 2 (opcional): comprueba el código sin cambiar nada; sirve para pasar a la pantalla de nueva contraseña. */
+  async verificarCodigoRecuperacion(dto: VerificarRecuperacionDto) {
+    await this.comprobarCodigoRecuperacion(dto.correo.toLowerCase(), dto.codigo);
+    return { valido: true };
+  }
+
+  /** Paso 3: con el código correcto se guarda la nueva contraseña y se cierran todas las sesiones. */
+  async restablecerPassword(dto: RestablecerPasswordDto) {
+    const correo = dto.correo.toLowerCase();
+    const { usuarioId, nombre } = await this.comprobarCodigoRecuperacion(correo, dto.codigo);
+    const passwordHash = await bcrypt.hash(dto.nuevaPassword, 12);
+
+    await this.prisma.$transaction([
+      this.prisma.usuario.update({ where: { id: usuarioId }, data: { passwordHash } }),
+      this.prisma.passwordReset.deleteMany({ where: { usuarioId } }), // el código ya no sirve
+      this.prisma.refreshToken.updateMany({
+        where: { usuarioId, revocadoEn: null },
+        data: { revocadoEn: new Date() }, // cierra las sesiones abiertas en otros dispositivos
+      }),
+    ]);
+
+    void this.mail.enviarPasswordCambiada(correo, nombre); // aviso de seguridad; nunca lanza error
+    return { ok: true, mensaje: 'Tu contraseña fue actualizada. Inicia sesión con la nueva' };
+  }
+
+  /** Valida el código (expiración, intentos, coincidencia). Cada fallo suma un intento. */
+  private async comprobarCodigoRecuperacion(correo: string, codigo: string) {
+    const u = await this.prisma.usuario.findUnique({
+      where: { correo },
+      select: { id: true, nombre: true, activo: true },
+    });
+    const r = u?.activo
+      ? await this.prisma.passwordReset.findFirst({ where: { usuarioId: u.id }, orderBy: { createdAt: 'desc' } })
+      : null;
+    if (!u || !r) throw new BadRequestException('Código inválido o expirado');
+
+    if (r.expiraEn < new Date()) throw new BadRequestException('El código expiró. Solicita uno nuevo');
+    if (r.intentos >= MAX_INTENTOS) {
+      throw new HttpException('Demasiados intentos. Solicita un nuevo código', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    if (!this.coincide(r.codigoHash, this.hashCodigoReset(correo, codigo))) {
+      await this.prisma.passwordReset.update({ where: { id: r.id }, data: { intentos: { increment: 1 } } });
+      const quedan = MAX_INTENTOS - r.intentos - 1;
+      throw new BadRequestException(
+        quedan > 0 ? `Código incorrecto. Te quedan ${quedan} intentos` : 'Código incorrecto. Solicita un nuevo código',
+      );
+    }
+    return { usuarioId: u.id, nombre: u.nombre };
   }
 
   // ───────────── Sesión ─────────────
@@ -185,6 +284,11 @@ export class AuthService {
     return createHmac('sha256', this.config.getOrThrow<string>('JWT_SECRET')).update(`${correo}:${codigo}`).digest('hex');
   }
 
+  /** Mismo mecanismo, pero con otro "propósito": un código de registro no sirve para recuperar contraseña. */
+  private hashCodigoReset(correo: string, codigo: string) {
+    return createHmac('sha256', this.config.getOrThrow<string>('JWT_SECRET')).update(`recuperar:${correo}:${codigo}`).digest('hex');
+  }
+
   private coincide(a: string, b: string) {
     const x = Buffer.from(a, 'hex');
     const y = Buffer.from(b, 'hex');
@@ -205,6 +309,15 @@ export class AuthService {
       return true;
     }
     return this.mail.enviarCodigoVerificacion(correo, nombre, codigo, CODIGO_MINUTOS);
+  }
+
+  /** En desarrollo sin SMTP configurado, el código se muestra en la consola del servidor. */
+  private async enviarCodigoRecuperacion(correo: string, nombre: string, codigo: string): Promise<boolean> {
+    if (!this.mail.configurado && process.env.NODE_ENV !== 'production') {
+      this.log.warn(`[DEV] Código de recuperación para ${correo}: ${codigo}`);
+      return true;
+    }
+    return this.mail.enviarCodigoRecuperacion(correo, nombre, codigo, CODIGO_MINUTOS);
   }
 
   private respuestaEnvio(correo: string) {

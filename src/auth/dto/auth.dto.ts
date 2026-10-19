@@ -39,3 +39,28 @@ export class RefreshDto {
   @IsString() @MinLength(20) @MaxLength(200)
   refreshToken: string;
 }
+
+// ───────────── Recuperar contraseña ─────────────
+export class SolicitarRecuperacionDto {
+  @IsEmail()
+  correo: string;
+}
+
+export class VerificarRecuperacionDto {
+  @IsEmail()
+  correo: string;
+
+  @Matches(/^\d{6}$/, { message: 'El código debe tener 6 dígitos' })
+  codigo: string;
+}
+
+export class RestablecerPasswordDto {
+  @IsEmail()
+  correo: string;
+
+  @Matches(/^\d{6}$/, { message: 'El código debe tener 6 dígitos' })
+  codigo: string;
+
+  @IsString() @MinLength(8) @MaxLength(72)
+  nuevaPassword: string;
+}

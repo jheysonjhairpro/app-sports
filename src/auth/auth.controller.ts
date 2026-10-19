@@ -3,7 +3,10 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
-import { LoginDto, ReenviarCodigoDto, RefreshDto, RegisterDto, VerificarRegistroDto } from './dto/auth.dto';
+import {
+  LoginDto, ReenviarCodigoDto, RefreshDto, RegisterDto, RestablecerPasswordDto, SolicitarRecuperacionDto,
+  VerificarRecuperacionDto, VerificarRegistroDto,
+} from './dto/auth.dto';
 
 @ApiTags('auth')
 @Public()
@@ -32,6 +35,30 @@ export class AuthController {
   @Post('reenviar-codigo')
   reenviar(@Body() dto: ReenviarCodigoDto) {
     return this.auth.reenviarCodigo(dto.correo);
+  }
+
+  /** Recuperar contraseña · paso 1: envía un código al correo (si existe la cuenta). */
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('recuperar/solicitar')
+  solicitarRecuperacion(@Body() dto: SolicitarRecuperacionDto) {
+    return this.auth.solicitarRecuperacion(dto.correo);
+  }
+
+  /** Recuperar contraseña · paso 2: comprueba el código (para mostrar la pantalla de nueva contraseña). */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('recuperar/verificar')
+  verificarRecuperacion(@Body() dto: VerificarRecuperacionDto) {
+    return this.auth.verificarCodigoRecuperacion(dto);
+  }
+
+  /** Recuperar contraseña · paso 3: código + nueva contraseña. Cierra todas las sesiones. */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('recuperar/restablecer')
+  restablecerPassword(@Body() dto: RestablecerPasswordDto) {
+    return this.auth.restablecerPassword(dto);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
