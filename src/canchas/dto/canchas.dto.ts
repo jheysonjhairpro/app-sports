@@ -13,6 +13,7 @@ export class CrearCanchaDto {
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(9999) precioHora: number;
   @IsOptional() @Transform(aLista) @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) servicios?: string[];
   @IsOptional() @Transform(aBooleano) @IsBoolean() activa?: boolean;
+  @IsOptional() foto?: any;
 }
 
 export class ActualizarCanchaDto extends PartialType(CrearCanchaDto) {}

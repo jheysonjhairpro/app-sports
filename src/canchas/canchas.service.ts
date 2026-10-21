@@ -48,14 +48,23 @@ export class CanchasService {
     );
   }
 
-  async actualizar(user: AuthUser, id: number, dto: ActualizarCanchaDto, foto?: Express.Multer.File) {
-    const c = await this.cancha(id);
-    await this.acceso.assertAdminDeComplejo(user, c.complejoId);
-    const { complejoId, ...data } = dto; // una cancha no cambia de complejo
-    return this.storage.conImagen(foto, 'cancha', c.fotoUrl, (url) =>
-      this.prisma.cancha.update({ where: { id }, data: { ...data, ...(url ? { fotoUrl: url } : {}) } }),
-    );
-  }
+async actualizar(user: AuthUser, id: number, dto: ActualizarCanchaDto, foto?: Express.Multer.File) {
+  const c = await this.cancha(id);
+  await this.acceso.assertAdminDeComplejo(user, c.complejoId);
+
+  // Extraemos 'complejoId' y 'foto' para que NO se envíen directamente a Prisma
+  const { complejoId, foto: _, ...data } = dto;
+
+  return this.storage.conImagen(foto, 'cancha', c.fotoUrl, (url) =>
+    this.prisma.cancha.update({
+      where: { id },
+      data: {
+        ...data,
+        ...(url ? { fotoUrl: url } : {}),
+      },
+    }),
+  );
+}
 
   /** Reemplaza toda la plantilla semanal de horarios (lo que guarda la pantalla "Horarios disponibles"). */
   async reemplazarHorarios(user: AuthUser, id: number, horarios: HorarioItemDto[]) {
