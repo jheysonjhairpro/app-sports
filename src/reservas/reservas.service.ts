@@ -100,7 +100,7 @@ export class ReservasService {
     void this.notif.notificar({
       usuarioId: user.id, reservaId: reserva.id, tipo: 'reserva_creada', correo: true,
       titulo: 'Reserva registrada',
-      mensaje: `Reservaste ${cancha.nombre} (${dto.horas} h). Sube tu voucher de Yape en los próximos ${this.num('MINUTOS_PAGO', 30)} minutos para confirmarla. Total: S/ ${precio.total.toFixed(2)}.`,
+      mensaje: `Reservaste ${cancha.nombre} (${dto.horas} h). Ya adjuntaste un pago, espera que el administrador de la cancha verifique tu págo para proceder la confirmacion de tu reserva. Total: S/ ${precio.total.toFixed(2)}.`,
     });
     return reserva;
   }

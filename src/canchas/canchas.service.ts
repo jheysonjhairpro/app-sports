@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AccesoService } from '../common/acceso.service';
 import { AuthUser } from '../common/auth-user';
 import { diaSemanaLocal, inicioDiaUtc, sumarHoras } from '../common/utils/time.util';
