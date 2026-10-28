@@ -65,22 +65,50 @@ export class ComplejosService {
     });
   }
 
-  crear(dto: CrearComplejoDto, foto?: Express.Multer.File) {
-    return this.storage.conImagen(foto, 'complejo', null, (url) =>
-      this.prisma.complejo.create({ data: { ...dto, ...(url ? { fotoUrl: url } : {}) } }),
+  async crear(dto: CrearComplejoDto, foto?: Express.Multer.File, qrYape?: Express.Multer.File) {
+    return this.storage.conImagen(foto, 'complejo', null, (fotoUrl) =>
+      this.storage.conImagen(qrYape, 'qr_yape', null, (qrYapeUrl) =>
+        this.prisma.complejo.create({
+          data: {
+            ...dto,
+            ...(fotoUrl ? { fotoUrl } : {}),
+            ...(qrYapeUrl ? { qrYapeUrl } : {}),
+          },
+        }),
+      ),
     );
   }
 
-  async actualizar(user: AuthUser, id: number, dto: ActualizarComplejoDto, foto?: Express.Multer.File) {
+  async actualizar(
+    user: AuthUser,
+    id: number,
+    dto: ActualizarComplejoDto,
+    foto?: Express.Multer.File,
+    qrYape?: Express.Multer.File,
+  ) {
     await this.acceso.assertAdminDeComplejo(user, id);
     // Solo el super admin puede destacar o desactivar un complejo
     if (user.rol !== 'super_admin' && (dto.destacado !== undefined || dto.activo !== undefined)) {
       throw new ForbiddenException('Solo el super admin puede cambiar "destacado" o "activo"');
     }
-    const actual = await this.prisma.complejo.findUnique({ where: { id }, select: { fotoUrl: true } });
+
+    const actual = await this.prisma.complejo.findUnique({
+      where: { id },
+      select: { fotoUrl: true, qrYapeUrl: true },
+    });
     if (!actual) throw new NotFoundException('Complejo no encontrado');
-    return this.storage.conImagen(foto, 'complejo', actual.fotoUrl, (url) =>
-      this.prisma.complejo.update({ where: { id }, data: { ...dto, ...(url ? { fotoUrl: url } : {}) } }),
+
+    return this.storage.conImagen(foto, 'complejo', actual.fotoUrl, (fotoUrl) =>
+      this.storage.conImagen(qrYape, 'qr_yape', actual.qrYapeUrl, (qrYapeUrl) =>
+        this.prisma.complejo.update({
+          where: { id },
+          data: {
+            ...dto,
+            ...(fotoUrl ? { fotoUrl } : {}),
+            ...(qrYapeUrl ? { qrYapeUrl } : {}),
+          },
+        }),
+      ),
     );
   }
 

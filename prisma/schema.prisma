@@ -135,6 +135,10 @@ model Complejo {
   longitud    Decimal? @db.Decimal(9, 6)
   telefono    String?  @db.VarChar(20)
   fotoUrl     String?  @map("foto_url") @db.VarChar(400)
+  
+  numeroYape  String?  @map("numero_yape") @db.VarChar(20)
+  qrYapeUrl   String?  @map("qr_yape_url") @db.VarChar(400)
+
   destacado   Boolean  @default(false)
   activo      Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")

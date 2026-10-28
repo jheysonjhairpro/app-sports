@@ -12,6 +12,8 @@ export class CrearComplejoDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-90) @Max(90) latitud?: number;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-180) @Max(180) longitud?: number;
   @IsOptional() @IsString() @MaxLength(20) telefono?: string;
+  @IsOptional() @IsString() @MaxLength(20) numeroYape?: string;
+  
   /** Solo lo puede cambiar el super admin */
   @IsOptional() @Transform(aBooleano) @IsBoolean() destacado?: boolean;
   @IsOptional() @Transform(aBooleano) @IsBoolean() activo?: boolean;

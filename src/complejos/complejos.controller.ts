@@ -1,7 +1,7 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UploadedFile, UseInterceptors,
+  Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from '../common/auth-user';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -31,21 +31,52 @@ export class ComplejosController {
     return this.service.detalle(id);
   }
 
-  /** multipart/form-data: campos del complejo y (opcional) foto */
+  /** CREAR COMPLEJO */
   @Roles('super_admin') @Post()
-  @UseInterceptors(FileInterceptor('foto', OPCIONES_IMAGEN))
-  crear(@Body() dto: CrearComplejoDto, @UploadedFile() foto?: Express.Multer.File) {
-    return this.service.crear(dto, foto);
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'foto', maxCount: 1 },
+        { name: 'qrYape', maxCount: 1 },
+      ],
+      {
+        ...OPCIONES_IMAGEN,
+        limits: { ...OPCIONES_IMAGEN?.limits, files: 2 }, // 👈 KO'ÁPE OMOĨ MOKÕI TA'ANGA LÍMITE
+      },
+    ),
+  )
+  crear(
+    @Body() dto: CrearComplejoDto,
+    @UploadedFiles() files?: { foto?: Express.Multer.File[]; qrYape?: Express.Multer.File[] },
+  ) {
+    const foto = files?.foto?.[0];
+    const qrYape = files?.qrYape?.[0];
+    return this.service.crear(dto, foto, qrYape);
   }
 
-  /** multipart/form-data: cualquier campo del complejo y/o foto (reemplaza la anterior) */
+  /** ACTUALIZAR COMPLEJO */
   @Roles('administrador', 'super_admin') @Patch(':id')
-  @UseInterceptors(FileInterceptor('foto', OPCIONES_IMAGEN))
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'foto', maxCount: 1 },
+        { name: 'qrYape', maxCount: 1 },
+      ],
+      {
+        ...OPCIONES_IMAGEN,
+        limits: { ...OPCIONES_IMAGEN?.limits, files: 2 }, // 👈 KO'ÁPE AVEI OMOĨ MOKÕI TA'ANGA LÍMITE
+      },
+    ),
+  )
   actualizar(
-    @CurrentUser() u: AuthUser, @Param('id', ParseIntPipe) id: number,
-    @Body() dto: ActualizarComplejoDto, @UploadedFile() foto?: Express.Multer.File,
+    @CurrentUser() u: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarComplejoDto,
+    @UploadedFiles() files?: { foto?: Express.Multer.File[]; qrYape?: Express.Multer.File[] },
   ) {
-    return this.service.actualizar(u, id, dto, foto);
+    const foto = files?.foto?.[0];
+    const qrYape = files?.qrYape?.[0];
+    return this.service.actualizar(u, id, dto, foto, qrYape);
   }
 
   @Roles('super_admin') @Get(':id/administradores')
