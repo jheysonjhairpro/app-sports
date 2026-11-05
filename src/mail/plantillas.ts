@@ -4,7 +4,7 @@
 export const MARCA = 'AbanPlay';
 
 // URL pública de tu logotipo (reemplaza esto con tu enlace real HTTPS)
-export const URL_LOGO = 'https://res.cloudinary.com/obz4qegq/image/upload/v1793025586/logo-login.png';
+export const URL_LOGO = 'https://res.cloudinary.com/obz4qegq/image/upload/v1793910663/logo.png';
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -33,7 +33,7 @@ export function correoHtml(d: DatosCorreo): string {
           <span style="display: block; font-size: 11px; font-weight: 700; color: #10D017; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">
             ${esc(d.etiquetaCodigo ?? 'Código de Verificación')}
           </span>
-          <div style="font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #ffffff; text-indent: 10px; font-family: 'Courier New', Courier, monospace;">
+          <div style="font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #ffffff; text-indent: 10px;">
             ${esc(d.codigo)}
           </div>
         </div>`
@@ -80,7 +80,7 @@ export function correoHtml(d: DatosCorreo): string {
             <!-- Header Limpio y Profesional con Logotipo -->
             <tr>
               <td style="background-color: #ffffff; padding: 5px 5px 5px 5px; text-align: center; border-bottom: 2px solid #F8FAFC;">
-                <img src="${URL_LOGO}" alt="AbanPlay" width="130" style="display: block; margin: 0 auto; max-width: 140px; height: auto;" />
+                <img src="${URL_LOGO}" alt="AbanPlay" width="150px" style="display: block; margin: 0 auto; max-width: 160px; height: auto;" />
               </td>
             </tr>
 

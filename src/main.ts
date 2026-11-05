@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common'; // <-- Agregamos BadRequestException
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -10,7 +10,24 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors({ origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : true });
   app.setGlobalPrefix('api/v1');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+
+  // 🚀 PIPELINE GLOBAL ACTUALIZADO CON EXCEPTION FACTORY EN ESPAÑOL Y SIN CORCHETES []
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: (errors) => {
+        const firstError = errors[0];
+        const firstConstraintMessage = firstError?.constraints
+          ? Object.values(firstError.constraints)[0]
+          : 'Datos de entrada no válidos';
+
+        return new BadRequestException(firstConstraintMessage);
+      },
+    }),
+  );
+
   app.enableShutdownHooks();
 
   if (process.env.NODE_ENV !== 'production') {

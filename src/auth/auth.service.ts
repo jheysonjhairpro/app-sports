@@ -1,6 +1,6 @@
 import {
   BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, InternalServerErrorException,
-  Logger, NotFoundException, ServiceUnavailableException, UnauthorizedException,
+  Logger, NotFoundException, ServiceUnavailableException, UnauthorizedException, ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -239,9 +239,22 @@ export class AuthService {
       where: { correo: dto.correo.toLowerCase() },
       include: { rol: true },
     });
-    if (!u || !u.activo || !(await bcrypt.compare(dto.password, u.passwordHash))) {
+
+    if (!u) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
+
+    const isPasswordValid = await bcrypt.compare(dto.password, u.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    if (!u.activo) {
+      throw new ForbiddenException(
+        'Tu cuenta se encuentra inactiva. Contacta al administrador.'
+      );
+    }
+
     return this.emitir(u);
   }
 

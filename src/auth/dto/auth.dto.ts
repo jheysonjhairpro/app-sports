@@ -1,66 +1,77 @@
 import { IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
-  @IsString() @MinLength(2) @MaxLength(100)
+  @IsString({ message: 'El nombre debe ser un texto' })
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
+  @MaxLength(100, { message: 'El nombre no puede exceder los 100 caracteres' })
   nombre: string;
 
-  @IsEmail() @MaxLength(150)
+  @IsEmail({}, { message: 'Ingresa un correo electrónico válido' })
+  @MaxLength(150, { message: 'El correo no puede exceder los 150 caracteres' })
   correo: string;
 
-  @IsOptional() @Matches(/^[0-9+\s-]{7,20}$/, { message: 'Teléfono inválido' })
+  @IsOptional()
+  @Matches(/^9\d{8}$/, { message: 'El celular debe tener exactamente 9 dígitos y empezar con 9' })
   telefono?: string;
 
-  @IsString() @MinLength(8) @MaxLength(72)
+  @IsString({ message: 'La contraseña debe ser un texto' })
+  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+  @MaxLength(72, { message: 'La contraseña es demasiado larga' })
   password: string;
 }
 
 export class VerificarRegistroDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Ingresa un correo electrónico válido' })
   correo: string;
 
-  @Matches(/^\d{6}$/, { message: 'El código debe tener 6 dígitos' })
+  @Matches(/^\d{6}$/, { message: 'El código debe tener exactamente 6 dígitos' })
   codigo: string;
 }
 
 export class ReenviarCodigoDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Ingresa un correo electrónico válido' })
   correo: string;
 }
 
 export class LoginDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Ingresa un correo electrónico válido' })
   correo: string;
 
-  @IsString() @MaxLength(72)
+  @IsString({ message: 'La contraseña debe ser un texto' })
+  @MaxLength(72, { message: 'La contraseña es demasiado larga' })
   password: string;
 }
 
 export class RefreshDto {
-  @IsString() @MinLength(20) @MaxLength(200)
+  @IsString({ message: 'El token debe ser un texto válido' })
+  @MinLength(20, { message: 'Token de refresco inválido' })
+  @MaxLength(200, { message: 'Token de refresco inválido' })
   refreshToken: string;
 }
 
 // ───────────── Recuperar contraseña ─────────────
 export class SolicitarRecuperacionDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Ingresa un correo electrónico válido' })
   correo: string;
 }
 
 export class VerificarRecuperacionDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Ingresa un correo electrónico válido' })
   correo: string;
 
-  @Matches(/^\d{6}$/, { message: 'El código debe tener 6 dígitos' })
+  @Matches(/^\d{6}$/, { message: 'El código debe tener exactamente 6 dígitos' })
   codigo: string;
 }
 
 export class RestablecerPasswordDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Ingresa un correo electrónico válido' })
   correo: string;
 
-  @Matches(/^\d{6}$/, { message: 'El código debe tener 6 dígitos' })
+  @Matches(/^\d{6}$/, { message: 'El código debe tener exactamente 6 dígitos' })
   codigo: string;
 
-  @IsString() @MinLength(8) @MaxLength(72)
+  @IsString({ message: 'La nueva contraseña debe ser un texto' })
+  @MinLength(8, { message: 'La nueva contraseña debe tener al menos 8 caracteres' })
+  @MaxLength(72, { message: 'La nueva contraseña es demasiado larga' })
   nuevaPassword: string;
 }
