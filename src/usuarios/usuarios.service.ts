@@ -7,7 +7,7 @@ import { StorageService } from '../storage/storage.service';
 import { ActualizarPerfilDto, ActualizarUsuarioDto, CrearUsuarioDto, ListarUsuariosDto } from './dto/usuarios.dto';
 
 const SELECT = {
-  id: true, nombre: true, correo: true, telefono: true, fotoUrl: true, activo: true, createdAt: true,
+  id: true, nombre: true, correo: true, telefono: true, fotoUrl: true, activo: true, createdAt: true,updatedAt: true,
   rol: { select: { nombre: true } },
 } satisfies Prisma.UsuarioSelect;
 
