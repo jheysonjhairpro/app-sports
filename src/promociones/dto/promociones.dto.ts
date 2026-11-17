@@ -20,6 +20,11 @@ export class CrearPromocionDto {
   @Matches(FECHA) vigenteDesde: string;
   @Matches(FECHA) vigenteHasta: string;
   @IsOptional() @IsBoolean() activa?: boolean;
+
+  /** Si se define, es una promoción de FIDELIDAD: se gana (por persona) al completar esta cantidad de reservas */
+  @IsOptional() @IsInt() @Min(1) @Max(100) reservasRequeridas?: number;
+  /** Cuántas veces puede ganar el premio una misma persona. Vacío = sin límite */
+  @IsOptional() @IsInt() @Min(1) @Max(100) usosMaximosPorPersona?: number;
 }
 
 export class ActualizarPromocionDto extends PartialType(CrearPromocionDto) {}

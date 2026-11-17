@@ -17,6 +17,12 @@ export class PromocionesController {
     return this.service.vigentes(q.complejoId);
   }
 
+  /** Mi progreso en las promociones de fidelidad del complejo (ej. 3/7 y si ya tengo premio disponible) */
+  @Get('mi-progreso')
+  miProgreso(@CurrentUser() u: AuthUser, @Query() q: ListarPromocionesDto) {
+    return this.service.miProgreso(u.id, q.complejoId);
+  }
+
   @Roles('administrador', 'super_admin') @Get('admin')
   todas(@CurrentUser() u: AuthUser, @Query() q: ListarPromocionesDto) {
     return this.service.todas(u, q.complejoId);

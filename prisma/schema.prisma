@@ -216,6 +216,11 @@ model Promocion {
   activa       Boolean       @default(true)
   createdAt    DateTime      @default(now()) @map("created_at")
 
+  // Promoción de FIDELIDAD (opcional). Si reservasRequeridas tiene valor, el premio se gana por persona
+  // tras completar esa cantidad de reservas en el complejo. usosMaximosPorPersona vacío = sin límite.
+  reservasRequeridas    Int? @map("reservas_requeridas") @db.SmallInt
+  usosMaximosPorPersona Int? @map("usos_maximos_por_persona") @db.SmallInt
+
   complejo Complejo  @relation(fields: [complejoId], references: [id], onDelete: Cascade)
   reservas Reserva[]
 

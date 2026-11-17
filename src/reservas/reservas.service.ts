@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { EstadoReserva, Prisma, Promocion } from '@prisma/client';
 import { AccesoService } from '../common/acceso.service';
 import { AuthUser } from '../common/auth-user';
+import { FidelidadService } from '../common/fidelidad.service';
 import { paginar } from '../common/dto/paginacion.dto';
 import { calcularPrecio, PromoReglas } from '../common/utils/precio.util';
 import { diaSemanaLocal, esHoraExacta, horaLocal, inicioDiaUtc, sumarHoras } from '../common/utils/time.util';
@@ -15,6 +16,7 @@ import { CrearReservaDto, ListarReservasAdminDto, ListarReservasDto } from './dt
 
 const INCLUIR = {
   cancha: { select: { id: true, nombre: true, fotoUrl: true, complejo: { select: { id: true, nombre: true, direccion: true } } } },
+  promocion: { select: { id: true, titulo: true, tipo: true, valor: true, reservasRequeridas: true } },
   pagos: { orderBy: { createdAt: 'desc' as const }, take: 1, select: { id: true, estado: true, voucherUrl: true, numeroOperacion: true, monto: true, motivoRechazo: true } },
 } satisfies Prisma.ReservaInclude;
 
@@ -27,6 +29,7 @@ export class ReservasService {
     private acceso: AccesoService,
     private notif: NotificacionesService,
     private config: ConfigService,
+    private fidelidad: FidelidadService,
   ) {}
 
   private num(clave: string, def: number) {
@@ -74,6 +77,19 @@ export class ReservasService {
     let reserva;
     try {
       reserva = await this.prisma.$transaction(async (tx) => {
+        // Promoción de fidelidad: se comprueba DENTRO de la transacción y con el usuario bloqueado,
+        // para que dos reservas simultáneas no puedan gastar el mismo premio dos veces.
+        if (promo?.reservasRequeridas) {
+          await tx.$queryRaw`SELECT id FROM usuario WHERE id = ${user.id} FOR UPDATE`;
+          const p = await this.fidelidad.progreso(user.id, promo, tx);
+          if (!p || p.disponibles < 1) {
+            throw new BadRequestException(
+              p?.agotada
+                ? 'Ya usaste esta promoción el máximo de veces permitido'
+                : `Aún no completas las ${promo.reservasRequeridas} reservas de esta promoción (llevas ${p?.progreso ?? 0}/${promo.reservasRequeridas})`,
+            );
+          }
+        }
         const r = await tx.reserva.create({
           data: {
             usuarioId: user.id, canchaId: cancha.id, promocionId: promo?.id,
